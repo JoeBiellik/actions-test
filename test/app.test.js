@@ -1,6 +1,6 @@
 const net = require('net');
 const http = require('http');
-const assert = require('chai').assert;
+const { assert } = require('chai');
 const parser = require('http-string-parser');
 const app = require('../app');
 
