@@ -20,5 +20,9 @@
     "quotes": ["error", "single", {
       "avoidEscape": true
     }]
-  }
+  },
+  "overrides": [{
+    "files": "test/*.js",
+    "envs": ["mocha"]
+  }]
 }

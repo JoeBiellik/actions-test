@@ -12,14 +12,16 @@ const request = (packet) => {
 
 			let res = '';
 
-			this.on('data', (chunk) => res += chunk);
+			this.on('data', (chunk) => {
+				res += chunk;
+			});
 			this.on('end', () => resolve(res));
 			this.on('error', reject);
 		});
 	});
 };
 
-const checkMirror = async (requestData, statusCode) => {
+const checkMirror = async (requestData, statusCode, body) => {
 	const responseData = await request(requestData);
 	const response = parser.parseResponse(responseData);
 
@@ -29,10 +31,10 @@ const checkMirror = async (requestData, statusCode) => {
 	assert.equal(response.headers.Connection, 'close', 'connection is set to close');
 	assert.equal(response.headers['Cache-Control'], 'no-cache', 'response caching is disabled');
 	assert.equal(response.headers['Content-Type'], 'text/plain; charset=utf-8', 'content type is UTF8 text');
-	assert.match(response.headers['Content-Length'], /^[0-9]+$/, 'content length is a valid number');
+	assert.match(response.headers['Content-Length'], /^\d+$/, 'content length is a valid number');
 	assert.lengthOf(Object.keys(response.headers), 4, '4 headers are expected');
 
-	assert.equal(response.body, requestData, 'body mirrors HTTP request verbatim');
+	assert.equal(response.body, body ?? requestData, 'body mirrors HTTP request verbatim');
 };
 
 const server = app.listen(0);
@@ -52,27 +54,34 @@ describe('app', () => {
 			await checkMirror('OPTIONS / HTTP/1.1\r\n\r\n', 200);
 		});
 
-
 		it('request headers should be mirrored', async () => {
-			await checkMirror('GET / HTTP/1.1\r\nTest: true\r\nAnother-Header:  Some Value\r\n\r\n', 200);
+			await checkMirror('GET / HTTP/1.1\r\nTest: true\r\nAnother-Header: Some Value\r\n\r\n', 200);
+		});
+
+		it('request body should be mirrored', async () => {
+			await checkMirror('GET / HTTP/1.1\r\nContent-Length: 4\r\n\r\nBody', 200);
 		});
 	});
 
 	describe('requests with invalid data', () => {
-		it('BAD request should be mirrored', async () => {
+		it('invalid request method should 400', async () => {
 			await checkMirror('BAD / HTTP/1.1\r\n\r\n', 400);
 		});
-
-		it('GET request should be mirrored', async () => {
+		it('request missing HTTP version should 400', async () => {
 			await checkMirror('GET / HTTP\r\n\r\n', 400);
 		});
-
-		it('GET request should be mirrored', async () => {
+		it('GET request with no URI should 400', async () => {
 			await checkMirror('GET\r\n\r\n', 400);
 		});
 
-		it('GET request should be mirrored', async () => {
-			await checkMirror('A\r\n', 400);
+		it('oversized request headers should 431', async () => {
+			await checkMirror(`GET / HTTP/1.1\r\nX-Header: ${Buffer.alloc(1025, 'a')}\r\n\r\n`, 431, '431 Request Header Fields Too Large\r\nMaximum total request header size is 1KB (1024 bytes)');
+		});
+		it('oversized request body with length should 413', async () => {
+			await checkMirror(`GET / HTTP/1.1\r\nContent-Length: 1025\r\n\r\n${Buffer.alloc(1025, 'a')}`, 413, '413 Payload Too Large\r\nMaximum request body size is 1KB (1024 bytes)');
+		});
+		it('oversized chunked request body should 413', async () => {
+			await checkMirror(`GET / HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n1025\r\n${Buffer.alloc(1025, 'a')}\r\n0\r\n\r\n`, 413, '413 Payload Too Large\r\nMaximum request body size is 1KB (1024 bytes)');
 		});
 	});
 });

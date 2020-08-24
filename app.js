@@ -16,25 +16,6 @@ const server = http.createServer({ maxHeaderSize: maxHeaderBytes }, (req, res) =
 	res.chunkedEncoding = false;
 	res.shouldKeepAlive = false;
 
-	const process = (chunk) => {
-		size += chunk.byteLength;
-
-		if (size > maxBodyBytes) {
-			req.off('data', process);
-			req.off('end', end);
-
-			res.end(message413);
-		} else {
-			data.push(chunk);
-		}
-	};
-
-	const end = () => {
-		const buffer = Buffer.concat(data);
-
-		res.socket.end(util.format(message, 200, http.STATUS_CODES[200], buffer.byteLength, buffer));
-	};
-
 	if (req.headers['content-length'] > maxBodyBytes) return res.socket.end(message413);
 
 	let size = 0;
@@ -43,8 +24,24 @@ const server = http.createServer({ maxHeaderSize: maxHeaderBytes }, (req, res) =
 		Buffer.from(`${req.method} ${req.url} HTTP/${req.httpVersion}\r\n${req.rawHeaders.map((v, i) => (i % 2 ? `${v}\r\n` : `${v}: `)).join('')}\r\n`, 'binary')
 	];
 
-	req.on('data', process);
-	req.on('end', end);
+	req.on('data', (chunk) => {
+		size += chunk.byteLength;
+
+		if (size > maxBodyBytes) {
+			req.removeAllListeners('data');
+			req.removeAllListeners('end');
+
+			res.socket.end(message413);
+		} else {
+			data.push(chunk);
+		}
+	});
+
+	req.on('end', () => {
+		const buffer = Buffer.concat(data);
+
+		res.socket.end(util.format(message, 200, http.STATUS_CODES[200], buffer.byteLength, buffer));
+	});
 });
 
 server.on('clientError', (err, socket) => {
