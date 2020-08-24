@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "license": "MIT",
   "main": "server.js",
+  "engines" : {
+    "node": ">=14"
+  },
   "scripts": {
     "test": "NODE_ENV=test nyc --reporter=lcov mocha --exit",
     "watch": "nodemon -L -e js",

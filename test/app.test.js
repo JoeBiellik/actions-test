@@ -4,6 +4,8 @@ const assert = require('chai').assert;
 const parser = require('http-string-parser');
 const app = require('../app');
 
+const server = app.listen(0);
+
 const request = (packet) => {
 	return new Promise((resolve, reject) => {
 		net.connect(server.address().port, function() {
@@ -36,8 +38,6 @@ const checkMirror = async (requestData, statusCode, body) => {
 
 	assert.equal(response.body, body ?? requestData, 'body mirrors HTTP request verbatim');
 };
-
-const server = app.listen(0);
 
 describe('app', () => {
 	describe('requests with valid data', () => {
