@@ -9,17 +9,17 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - uses: actions/setup-node@v1
+      # - uses: actions/setup-node@v1
 
-      - uses: actions/cache@v2
-        with:
-          path: ~/.npm
-          key: node-${{ hashFiles('package-lock.json') }}
+      # - uses: actions/cache@v2
+      #   with:
+      #     path: ~/.npm
+      #     key: node-${{ hashFiles('package-lock.json') }}
 
-      - run: npm ci
+      # - run: npm ci
 
-      - run: npm run lint
+      # - run: npm run lint
 
-      - run: npm test
+      # - run: npm test
 
-      - uses: codecov/codecov-action@v1
+      # - uses: codecov/codecov-action@v1
